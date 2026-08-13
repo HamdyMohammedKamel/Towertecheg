@@ -3,8 +3,6 @@ import sqlite3
 import pandas as pd
 import datetime
 import hashlib
-import uuid
-import platform
 import io
 
 # ==========================================
@@ -17,6 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# تنسيق الجداول والـ Header والـ CSS وطباعة الفاتورة A4
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
@@ -48,6 +47,7 @@ st.markdown("""
         color: #94a3b8;
     }
 
+    /* تنسيق طباعة الفاتورة A4 */
     @media print {
         body * { visibility: hidden; }
         .printable-invoice, .printable-invoice * { visibility: visible; }
@@ -76,21 +76,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. حماية البرنامج وبصمة الجهاز (Hardware Lock)
-# ==========================================
-def get_hardware_id():
-    """استخراج المعرف الفريد للجهاز لمنع استخدام البرنامج على جهاز غير مرخص"""
-    node = uuid.getnode()
-    system_info = f"{platform.node()}-{node}-{platform.processor()}"
-    return hashlib.sha256(system_info.encode()).hexdigest()[:16].upper()
-
-def generate_license_key(hw_id):
-    """توليد مفتاح التفعيل بناءً على بصمة الجهاز كـ Master Key"""
-    secret_salt = "TOWERTECH_SECURE_SALT_2026"
-    return hashlib.sha256(f"{hw_id}_{secret_salt}".encode()).hexdigest()[:20].upper()
-
-# ==========================================
-# 3. إدارة قاعدة البيانات SQLite (لا تتأثر بالتحديثات)
+# 2. إدارة قاعدة البيانات SQLite (دائمة)
 # ==========================================
 DB_FILE = "towertech_v3.db"
 
@@ -106,18 +92,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # جدول التفعيل والترخيص
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS system_license (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            hardware_id TEXT UNIQUE NOT NULL,
-            license_key TEXT NOT NULL,
-            is_active INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # جدول المستخدمين
+    # جدول المستخدمين والصلاحيات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,7 +114,7 @@ def init_db():
         )
     ''')
     
-    # جدول شركاء الأعمال (عملاء، موردين، ومخازن كشركاء)
+    # جدول شركاء الأعمال (عملاء، موردين، عميل ومورد، ومخازن كشركاء)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS partners (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,7 +128,7 @@ def init_db():
         )
     ''')
     
-    # جدول الأصناف
+    # جدول الأصناف التفصيلي
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,7 +148,7 @@ def init_db():
         )
     ''')
     
-    # جدول المخزون
+    # جدول رصيد المخزون في كل مخزن
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -232,6 +207,7 @@ def init_db():
         )
     ''')
     
+    # جدول بنود الفواتير
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS invoice_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -245,7 +221,7 @@ def init_db():
         )
     ''')
     
-    # إضافة مدير النظام الافتراضي والمخزن الرئيسي
+    # إنشاء أدمن وافتراضيات النظام
     cursor.execute("SELECT * FROM users WHERE username = 'admin'")
     if not cursor.fetchone():
         cursor.execute(
@@ -259,7 +235,6 @@ def init_db():
             "INSERT INTO warehouses (name, location, is_main) VALUES (?, ?, ?)",
             ('المخزن الرئيسي (HQ)', 'فرع المركز الرئيسي - القاهرة', 1)
         )
-        # تكويد المخزن الرئيسي تلقائياً كشريك أعمال أيضاً للتسهيل
         main_wh_id = cursor.lastrowid
         cursor.execute(
             "INSERT INTO partners (name, partner_type, linked_warehouse_id, notes) VALUES (?, ?, ?, ?)",
@@ -272,48 +247,18 @@ def init_db():
 init_db()
 
 # ==========================================
-# 4. الشعار وإدارة التفعيل والترخيص
+# 3. الهيدر والشعار
 # ==========================================
 def render_brand_header():
     st.markdown("""
         <div class="brand-header">
             <div class="brand-logo">💻 TOWERTECH IT & SYSTEMS ⚡</div>
-            <div class="brand-subtitle">نظام إدارة المخازن والتحويلات، الفواتير الذكية، وحماية الترخيص</div>
+            <div class="brand-subtitle">نظام إدارة المخازن، التحويلات، والفواتير الذكية</div>
         </div>
     """, unsafe_allow_html=True)
 
-# فحص ترخيص الجهاز
-hw_id = get_hardware_id()
-valid_key = generate_license_key(hw_id)
-
-conn = get_connection()
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM system_license WHERE hardware_id = ? AND license_key = ?", (hw_id, valid_key))
-license_record = cursor.fetchone()
-conn.close()
-
-if not license_record:
-    render_brand_header()
-    st.error("🔒 **البرنامج غير مفعل على هذا الجهاز!**")
-    st.info(f"🔑 **كود الجهاز الخاص بك (Hardware ID):** `{hw_id}`")
-    st.write("يرجى التواصل مع المطور/الشركة الموردة للحصول على مفتاح التفعيل لهذه النسخة.")
-    
-    lic_input = st.text_input("أدخل مفتاح التفعيل (License Key):")
-    if st.button("تفعيل البرنامج"):
-        if lic_input.strip() == valid_key:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO system_license (hardware_id, license_key) VALUES (?, ?)", (hw_id, valid_key))
-            conn.commit()
-            conn.close()
-            st.success("✅ تم تفعيل البرنامج بنجاح على هذا الجهاز!")
-            st.rerun()
-        else:
-            st.error("❌ مفتاح التفعيل غير صحيح.")
-    st.stop()
-
 # ==========================================
-# 5. إدارة جلسة المستخدم
+# 4. إدارة جلسة المستخدم وتسجيل الدخول
 # ==========================================
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
@@ -360,7 +305,7 @@ if not st.session_state['logged_in']:
     st.stop()
 
 # ==========================================
-# 6. القائمة الجانبية والصلاحيات
+# 5. القائمة الجانبية والصلاحيات
 # ==========================================
 role = st.session_state['user_role']
 
@@ -398,7 +343,7 @@ with st.sidebar:
 render_brand_header()
 
 # ==========================================
-# 7. شاشة (1): المخزون والتنبيهات الحالية
+# 6. شاشة (1): المخزون والتنبيهات الحالية
 # ==========================================
 if choice == "📊 المخزون والتنبيهات الحالية":
     st.title("📊 موقف المخزون والجرد الحالي")
@@ -453,7 +398,7 @@ if choice == "📊 المخزون والتنبيهات الحالية":
     conn.close()
 
 # ==========================================
-# 8. شاشة (2): تكويد أصناف جديدة
+# 7. شاشة (2): تكويد أصناف جديدة
 # ==========================================
 elif choice == "🏷️ إضافة وتكويد أصناف جديدة":
     st.title("🏷️ إضافة وتكويد صنف جديد بالكامل")
@@ -499,7 +444,7 @@ elif choice == "🏷️ إضافة وتكويد أصناف جديدة":
     conn.close()
 
 # ==========================================
-# 9. شاشة (3): تكويد العملاء والموردين والمخازن كشركاء
+# 8. شاشة (3): تكويد العملاء والموردين والمخازن كشركاء
 # ==========================================
 elif choice == "🤝 تكويد العملاء والموردين والمخازن كشركاء":
     st.title("🤝 إدارة وتكويد شركاء الأعمال")
@@ -531,7 +476,7 @@ elif choice == "🤝 تكويد العملاء والموردين والمخاز
     conn.close()
 
 # ==========================================
-# 10. شاشة (4): تسجيل حركة مخزنية
+# 9. شاشة (4): تسجيل حركة مخزنية
 # ==========================================
 elif choice == "📝 تسجيل حركة مخزنية (إضافة / صرف / مرتجع)":
     st.title("📝 تسجيل أذون الحركة المخزنية")
@@ -591,7 +536,7 @@ elif choice == "📝 تسجيل حركة مخزنية (إضافة / صرف / م�
     conn.close()
 
 # ==========================================
-# 11. شاشة (5): التحويل الآلي بين المخازن (صرف من المحوِّل وإضافة للمحوَّل إليه)
+# 10. شاشة (5): التحويل الآلي بين المخازن
 # ==========================================
 elif choice == "🔄 التحويل بين المخازن (صرف وإضافة تلقائية)":
     st.title("🔄 التحويل بين المخازن (من المخزن الرئيسي إلى المخازن الفرعية والعكس)")
@@ -625,7 +570,6 @@ elif choice == "🔄 التحويل بين المخازن (صرف وإضافة �
                     item_id = items_df[items_df['code'] == item_disp.split(" - ")[0]]['id'].values[0]
                     
                     cursor = conn.cursor()
-                    # 1. التحقق من رصيد المخزن المحول منه
                     cursor.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND item_id = ?", (from_wh_id, item_id))
                     res_from = cursor.fetchone()
                     from_curr_qty = res_from['quantity'] if res_from else 0
@@ -633,7 +577,7 @@ elif choice == "🔄 التحويل بين المخازن (صرف وإضافة �
                     if transfer_qty > from_curr_qty:
                         st.error(f"❌ الرصيد المتاح بالمخزن المصدر ({from_wh_name}) هو ({from_curr_qty}) فقط، ولا يكفي للتحويل.")
                     else:
-                        # 2. خصم الكمية من المخزن المصدر (حركة صرف)
+                        # 1. خصم من المخزن المصدر
                         new_from_qty = from_curr_qty - transfer_qty
                         cursor.execute("UPDATE inventory SET quantity = ? WHERE warehouse_id = ? AND item_id = ?", (new_from_qty, from_wh_id, item_id))
                         cursor.execute("""
@@ -641,7 +585,7 @@ elif choice == "🔄 التحويل بين المخازن (صرف وإضافة �
                             VALUES (?, 'صرف تحويل مخزني', ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (trans_date, from_wh_id, to_wh_id, item_id, requester_name, transfer_qty, ref_no, f"تحويل إلى {to_wh_name}: {transfer_notes}", st.session_state['user_id']))
                         
-                        # 3. إضافة الكمية للمخزن الهدف (حركة إضافة)
+                        # 2. إضافة للمخزن المستقبل
                         cursor.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND item_id = ?", (to_wh_id, item_id))
                         res_to = cursor.fetchone()
                         to_curr_qty = res_to['quantity'] if res_to else 0
@@ -663,7 +607,7 @@ elif choice == "🔄 التحويل بين المخازن (صرف وإضافة �
     conn.close()
 
 # ==========================================
-# 12. شاشة (6): إدارة المخازن الفرعية
+# 11. شاشة (6): إدارة المخازن الفرعية
 # ==========================================
 elif choice == "🏭 إدارة المخازن الفرعية والرئيسية":
     st.title("🏭 إدارة وتكويد المخازن")
@@ -680,7 +624,6 @@ elif choice == "🏭 إدارة المخازن الفرعية والرئيسية
                         cursor = conn.cursor()
                         cursor.execute("INSERT INTO warehouses (name, location, is_main) VALUES (?, ?, 0)", (wn.strip(), wl.strip()))
                         wh_id = cursor.lastrowid
-                        # إضافة كشريك أعمال أيضاً
                         cursor.execute("INSERT INTO partners (name, partner_type, linked_warehouse_id) VALUES (?, 'مخزن كشريك', ?)", (wn.strip(), wh_id))
                         conn.commit()
                         st.success("تم التكويد بنجاح!")
@@ -692,7 +635,7 @@ elif choice == "🏭 إدارة المخازن الفرعية والرئيسية
     conn.close()
 
 # ==========================================
-# 13. شاشة (7): إصدار الفواتير A4
+# 12. شاشة (7): إصدار الفواتير A4
 # ==========================================
 elif choice == "🧾 إصدار فاتورة بيع جديدة (A4)":
     st.title("🧾 إصدار فاتورة بيع جديدة مقاس A4")
@@ -781,11 +724,13 @@ elif choice == "🧾 إصدار فاتورة بيع جديدة (A4)":
                         VALUES (?, ?, ?, ?, ?)
                     """, (invoice_id, line['item_id'], line['qty'], line['price'], line['total']))
                     
+                    # خصم المخزون
                     cursor.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND item_id = ?", (selected_wh_id, line['item_id']))
                     curr_q = cursor.fetchone()['quantity']
                     new_q = curr_q - line['qty']
                     cursor.execute("UPDATE inventory SET quantity = ? WHERE warehouse_id = ? AND item_id = ?", (new_q, selected_wh_id, line['item_id']))
                     
+                    # تسجيل حركة صرف متسقة
                     cursor.execute("""
                         INSERT INTO transactions (trans_date, trans_type, warehouse_id, item_id, partner_id, requester_name, quantity, unit_price, total_price, reference_no, notes, user_id)
                         VALUES (?, 'صرف', ?, ?, ?, ?, ?, ?, ?, ?, 'صرف تلقائي بموجب فاتورة مبيعات', ?)
@@ -797,7 +742,7 @@ elif choice == "🧾 إصدار فاتورة بيع جديدة (A4)":
     conn.close()
 
 # ==========================================
-# 14. شاشة (8): استعلام ومعاينة الفواتير
+# 13. شاشة (8): استعلام ومعاينة الفواتير
 # ==========================================
 elif choice == "🔍 شاشة استعلام واستعراض الفواتير":
     st.title("🔍 شاشة كود الفواتير والاستعلام الجاهز للطباعة")
@@ -878,7 +823,7 @@ elif choice == "🔍 شاشة استعلام واستعراض الفواتير":
     conn.close()
 
 # ==========================================
-# 15. شاشة (9): التقارير الاستعلامية التفصيلية
+# 14. شاشة (9): التقارير الاستعلامية التفصيلية
 # ==========================================
 elif choice == "📜 التقارير الاستعلامية والتشغيلية":
     st.title("📜 التقارير الاستعلامية التفصيلية")
@@ -903,7 +848,22 @@ elif choice == "📜 التقارير الاستعلامية والتشغيلي�
     show_charts = c3.checkbox("📊 عرض الرسوم البيانية (Charts)", value=True)
     st.markdown("---")
     
-    if "تحويلات" in rep_type:
+    if "صنف" in rep_type:
+        items_list = pd.read_sql_query("SELECT id, name FROM items", conn)
+        sel_item = st.selectbox("اختر الصنف:", items_list['name'].tolist()) if not items_list.empty else None
+        if sel_item:
+            df_res = pd.read_sql_query("""
+                SELECT t.trans_date AS 'التاريخ', t.trans_type AS 'نوع الحركة', w.name AS 'المخزن',
+                       t.quantity AS 'الكمية', t.unit_price AS 'سعر الوحدة', t.total_price AS 'الإجمالي',
+                       COALESCE(p.name, 'غير محدد') AS 'الجهة/الشريك', t.requester_name AS 'المسؤول/المستلم'
+                FROM transactions t JOIN items i ON t.item_id = i.id JOIN warehouses w ON t.warehouse_id = w.id
+                LEFT JOIN partners p ON t.partner_id = p.id WHERE i.name = ? AND t.trans_date BETWEEN ? AND ?
+            """, conn, params=(sel_item, s_date, e_date))
+            st.dataframe(df_res, use_container_width=True)
+            if show_charts and not df_res.empty:
+                st.bar_chart(df_res.groupby('نوع الحركة')['الكمية'].sum())
+                
+    elif "تحويلات" in rep_type:
         df_res = pd.read_sql_query("""
             SELECT t.trans_date AS 'التاريخ', t.trans_type AS 'الحركة', w1.name AS 'من مخزن', w2.name AS 'إلى مخزن',
                    i.name AS 'الصنف', t.quantity AS 'الكمية', t.requester_name AS 'المسؤول'
@@ -928,7 +888,7 @@ elif choice == "📜 التقارير الاستعلامية والتشغيلي�
     conn.close()
 
 # ==========================================
-# 16. شاشة (10): تقارير الإدارة الاستراتيجية
+# 15. شاشة (10): تقارير الإدارة الاستراتيجية
 # ==========================================
 elif choice == "👑 تقارير الإدارة الاستراتيجية والاحصائيات":
     st.title("👑 تقارير الإدارة والإحصائيات الاستراتيجية")
@@ -956,7 +916,7 @@ elif choice == "👑 تقارير الإدارة الاستراتيجية وال
     conn.close()
 
 # ==========================================
-# 17. شاشة (11): إدارة المستخدمين وتغيير كلمة السر
+# 16. شاشة (11): إدارة المستخدمين وتغيير كلمة السر
 # ==========================================
 elif choice == "⚙️ إدارة المستخدمين وتغيير كلمات السر":
     if st.session_state['user_role'] != 'مدير النظام':
