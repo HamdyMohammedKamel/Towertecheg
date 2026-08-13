@@ -11,7 +11,7 @@ import plotly.express as px
 # 1. تهيئة الصفحة والـ CSS للهوية البصرية
 # ==========================================
 st.set_page_config(
-    page_title="المحاسب | AL-MOHASEB ERP",
+    page_title="Towertech ERP | إدارة المخازن والحسابات والـ HR",
     page_icon="💻",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -27,12 +27,12 @@ st.markdown("""
         text-align: right;
     }
     
-    /* شريط العنوان والهوية البصرية لشركة حاسبات */
+    /* شريط العنوان والهوية البصرية لشركة Towertech */
     .brand-header {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         border: 2px solid #38bdf8;
         color: #ffffff;
-        padding: 18px;
+        padding: 16px;
         border-radius: 12px;
         text-align: center;
         margin-bottom: 20px;
@@ -45,12 +45,12 @@ st.markdown("""
         letter-spacing: 1px;
     }
     .brand-subtitle {
-        font-size: 14px;
+        font-size: 13px;
         color: #94a3b8;
         margin-top: 4px;
     }
 
-    /* الشريط الجانبي بالرمادي الفاتح مع فواصل وأزرار واضحة */
+    /* الشريط الجانبي رمادي فاتح مع فواصل وأزرار واضحة */
     [data-testid="stSidebar"] {
         background-color: #f1f5f9 !important;
         border-left: 1px solid #cbd5e1;
@@ -59,39 +59,39 @@ st.markdown("""
         background-color: #e2e8f0;
         color: #0f172a;
         font-weight: 700;
-        font-size: 14px;
-        padding: 8px 12px;
+        font-size: 13px;
+        padding: 6px 10px;
         border-radius: 6px;
-        margin-top: 15px;
-        margin-bottom: 8px;
+        margin-top: 12px;
+        margin-bottom: 6px;
         border-right: 4px solid #0284c7;
     }
     .sidebar-divider {
-        margin: 12px 0;
+        margin: 10px 0;
         border-bottom: 1px dashed #cbd5e1;
     }
 
-    /* تنسيق الطباعة A4 */
-    @media print {
-        body * { visibility: hidden; }
-        .printable-area, .printable-area * { visibility: visible; }
-        .printable-area {
-            position: absolute; left: 0; top: 0; width: 100%;
-            padding: 20px; font-size: 14px; color: #000; background: #fff;
-        }
-        .no-print { display: none !important; }
-    }
-    
     .stButton>button {
-        border-radius: 6px; font-weight: 700;
+        width: 100%;
+        border-radius: 6px;
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+        background-color: #ffffff;
+        color: #1e293b;
+        margin-bottom: 3px;
+    }
+    .stButton>button:hover {
+        background-color: #e2e8f0;
+        border-color: #0284c7;
+        color: #0284c7;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. إدارة قاعدة البيانات SQLite (دائمة)
+# 2. إدارة قاعدة البيانات SQLite الدائمة
 # ==========================================
-DB_FILE = "almohaseb_erp.db"
+DB_FILE = "towertech_erp.db"
 
 def get_connection():
     conn = sqlite3.connect(DB_FILE, timeout=30, check_same_thread=False)
@@ -105,7 +105,7 @@ def init_db():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # جدول المستخدمين والصلاحيات
+    # 1. المستخدمين
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +118,7 @@ def init_db():
         )
     ''')
     
-    # جدول المخازن/الفروع
+    # 2. المخازن
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS warehouses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -128,7 +128,7 @@ def init_db():
         )
     ''')
     
-    # جدول الشركاء (عميل / مورد / عميل ومورد)
+    # 3. الشركاء (عملاء / موردين)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS partners (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,7 +140,7 @@ def init_db():
         )
     ''')
     
-    # جدول الأصناف
+    # 4. الأصناف
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -160,7 +160,7 @@ def init_db():
         )
     ''')
     
-    # جدول أرصده المخزون
+    # 5. مخزون الفروع
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,7 +173,7 @@ def init_db():
         )
     ''')
     
-    # جدول حركات المخزون والتحويلات
+    # 6. الحركات المخزنية
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -194,7 +194,7 @@ def init_db():
         )
     ''')
     
-    # جدول الفواتير
+    # 7. الفواتير
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS invoices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -211,7 +211,6 @@ def init_db():
         )
     ''')
     
-    # بنود الفواتير
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS invoice_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,7 +222,7 @@ def init_db():
         )
     ''')
     
-    # جدول الحسابات النقدية والخزينة
+    # 8. الخزينة النقدية
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS treasury_ledger (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -238,7 +237,85 @@ def init_db():
         )
     ''')
 
-    # إنشاء المخزن الرئيسي والحسابات الافتراضية
+    # 9. حسابات البنوك والشيكات
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bank_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bank_name TEXT NOT NULL,
+            account_number TEXT UNIQUE NOT NULL,
+            iban TEXT,
+            balance REAL DEFAULT 0.0
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bank_cheques (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cheque_number TEXT NOT NULL,
+            bank_id INTEGER NOT NULL,
+            partner_id INTEGER,
+            cheque_type TEXT NOT NULL, -- مقبوض / مدفوع
+            amount REAL NOT NULL,
+            issue_date DATE NOT NULL,
+            due_date DATE NOT NULL,
+            status TEXT DEFAULT 'تحت التحصيل', -- تحت التحصيل / تم الصرف / ملغى
+            notes TEXT,
+            FOREIGN KEY (bank_id) REFERENCES bank_accounts(id)
+        )
+    ''')
+
+    # 10. الـ HR والموظفين والمرتبات والعُهد
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS employees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            full_name TEXT NOT NULL,
+            job_title TEXT,
+            phone TEXT,
+            basic_salary REAL DEFAULT 0.0,
+            national_id TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS emp_advances (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            emp_id INTEGER NOT NULL,
+            request_date DATE NOT NULL,
+            amount REAL NOT NULL,
+            status TEXT DEFAULT 'مقبولة',
+            notes TEXT,
+            FOREIGN KEY (emp_id) REFERENCES employees(id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS emp_custody (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            emp_id INTEGER NOT NULL,
+            given_date DATE NOT NULL,
+            amount REAL NOT NULL,
+            statement TEXT NOT NULL,
+            is_settled INTEGER DEFAULT 0,
+            FOREIGN KEY (emp_id) REFERENCES employees(id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS payroll (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pay_month TEXT NOT NULL,
+            emp_id INTEGER NOT NULL,
+            basic_salary REAL NOT NULL,
+            bonuses REAL DEFAULT 0.0,
+            deductions REAL DEFAULT 0.0,
+            advances_deducted REAL DEFAULT 0.0,
+            net_salary REAL NOT NULL,
+            paid_date DATE,
+            FOREIGN KEY (emp_id) REFERENCES employees(id)
+        )
+    ''')
+
+    # إنشاء المخزن الرئيسي والحساب الافتراضي
     cursor.execute("SELECT * FROM warehouses WHERE is_main = 1")
     main_wh = cursor.fetchone()
     if not main_wh:
@@ -265,13 +342,13 @@ init_db()
 def render_brand_header():
     st.markdown("""
         <div class="brand-header">
-            <div class="brand-logo">💻 برنامج المحاسب | AL-MOHASEB ERP ⚡</div>
-            <div class="brand-subtitle">نظام المبيعات وإدارة المخازن المتعددة والخزينة المالي الموحد - حلول تكنولوجيا المعلومات</div>
+            <div class="brand-logo">💻 Towertech Solutions ⚡</div>
+            <div class="brand-subtitle">نظام المبيعات والمخازن والبنوك والمرتبات (ERP) - حلول تكنولوجيا المعلومات</div>
         </div>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 4. تسجيل الدخول واختيار الجلسة
+# 4. تسجيل الدخول
 # ==========================================
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
@@ -290,7 +367,7 @@ def login_screen():
     render_brand_header()
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.subheader("🔑 تسجيل الدخول للتطبيق")
+        st.subheader("🔑 تسجيل الدخول للنظام")
         username_input = st.text_input("اسم المستخدم")
         password_input = st.text_input("كلمة السر", type="password")
         
@@ -321,49 +398,63 @@ if not st.session_state['logged_in']:
     st.stop()
 
 # ==========================================
-# 5. القائمة الجانبية المنظمة بأسلوب الأقسام
+# 5. القائمة الجانبية المنسقة
 # ==========================================
 role = st.session_state['user_role']
 user_wh_id = st.session_state['user_wh_id']
 
 with st.sidebar:
-    st.markdown("### 💻 برنامج المحاسب")
+    st.markdown("### 💻 Towertech ERP")
     st.write(f"👤 **المستخدم:** {st.session_state['full_name']}")
     st.write(f"💼 **الصلاحية:** `{role}`")
-    
     st.markdown("<div class='sidebar-divider'></div>", unsafe_allow_html=True)
     
     options_map = {}
     
-    # قسم المخزون والتكويد
-    options_map["--- المخزون والتكويد ---"] = []
-    options_map["--- المخزون والتكويد ---"].append("📊 جرد المخزون والتنبيهات")
+    # 1. المخزون
+    options_map["--- المخزون والتكويد ---"] = ["📊 جرد المخزون والتنبيهات"]
     if role in ['مدير النظام', 'مسؤول مخازن']:
-        options_map["--- المخزون والتكويد ---"].append("🏷️ إضافة وتعديل الأصناف")
-        options_map["--- المخزون والتكويد ---"].append("🤝 إدارة وتعديل العملاء والموردين")
-        options_map["--- المخزون والتكويد ---"].append("📝 أذون الحركة (إضافة / صرف / مرتجع)")
-        options_map["--- المخزون والتكويد ---"].append("🔄 التحويل بين المخازن")
-        options_map["--- المخزون والتكويد ---"].append("🏭 إدارة المخازن والفروع")
+        options_map["--- المخزون والتكويد ---"].extend([
+            "🏷️ إضافة وتعديل الأصناف",
+            "🤝 إدارة وتعديل العملاء والموردين",
+            "📝 أذون الحركة (إضافة / صرف / مرتجع)",
+            "🔄 التحويل بين المخازن",
+            "🏭 إدارة المخازن والفروع"
+        ])
         
-    # قسم المبيعات والفواتير
+    # 2. المبيعات
     options_map["--- المبيعات والفواتير ---"] = []
     if role in ['مدير النظام', 'ممثل مبيعات']:
         options_map["--- المبيعات والفواتير ---"].append("🧾 إصدار فاتورة بيع A4")
     options_map["--- المبيعات والفواتير ---"].append("🔍 استعلام وشاشة الفواتير")
 
-    # قسم الحسابات والخزينة
-    options_map["--- المالية والحسابات ---"] = []
+    # 3. الحسابات والبنوك
+    options_map["--- الحسابات والبنوك ---"] = []
     if role in ['مدير النظام', 'محاسب']:
-        options_map["--- المالية والحسابات ---"].append("💰 حركة الخزنة والنثريات")
-        options_map["--- المالية والحسابات ---"].append("📈 تقرير الأرباح والخسائر وكشف الحساب")
+        options_map["--- الحسابات والبنوك ---"].extend([
+            "💰 حركة الخزنة والنثريات",
+            "🏦 حسابات البنوك والشيكات",
+            "📈 الأرباح والخسائر وكشوف الحساب"
+        ])
 
-    # قسم التقارير والإدارة
-    options_map["--- التقارير والإدارة ---"] = []
-    options_map["--- التقارير والإدارة ---"].append("📜 التقارير التشغيلية والاستعلامات")
-    options_map["--- التقارير والإدارة ---"].append("👑 تقارير الإدارة الاستراتيجية")
+    # 4. الـ HR والمرتبات
+    options_map["--- الموارد البشرية HR ---"] = []
+    if role in ['مدير النظام', 'محاسب']:
+        options_map["--- الموارد البشرية HR ---"].extend([
+            "👨‍💼 تكويد الموظفين والعُهد",
+            "💵 السُلف ومسير المرتبات"
+        ])
+
+    # 5. التقارير والإدارة
+    options_map["--- التقارير والإدارة ---"] = [
+        "📜 التقارير التشغيلية والاستعلامات",
+        "👑 تقارير الإدارة الاستراتيجية"
+    ]
     if role == 'مدير النظام':
-        options_map["--- التقارير والإدارة ---"].append("⚙️ إدارة المستخدمين والصلاحيات")
-        options_map["--- التقارير والإدارة ---"].append("💾 النسخ الاحتياطي والاستعادة")
+        options_map["--- التقارير والإدارة ---"].extend([
+            "⚙️ إدارة المستخدمين والصلاحيات",
+            "💾 النسخ الاحتياطي والاستعادة"
+        ])
 
     for sec_title, sec_opts in options_map.items():
         if sec_opts:
@@ -432,7 +523,6 @@ if choice == "📊 جرد المخزون والتنبيهات":
 elif choice == "🏷️ إضافة وتعديل الأصناف":
     st.title("🏷️ إدارة وتكويد الأصناف (إضافة / تعديل)")
     conn = get_connection()
-    
     tab1, tab2 = st.tabs(["➕ إضافة صنف جديد", "✏️ تعديل صنف موجود"])
     
     with tab1:
@@ -476,7 +566,6 @@ elif choice == "🏷️ إضافة وتعديل الأصناف":
         if not items_df.empty:
             sel_item_str = st.selectbox("اختر الصنف للتعديل:", items_df.apply(lambda r: f"{r['code']} - {r['name']}", axis=1).tolist())
             item_id = int(items_df[items_df.apply(lambda r: f"{r['code']} - {r['name']}", axis=1) == sel_item_str]['id'].values[0])
-            
             item_row = pd.read_sql_query("SELECT * FROM items WHERE id = ?", conn, params=(item_id,)).iloc[0]
             
             with st.form("edit_item_form"):
@@ -535,7 +624,7 @@ elif choice == "🤝 إدارة وتعديل العملاء والموردين":
                 e_p_address = st.text_input("العنوان", value=p_row['address'] or '')
                 e_p_notes = st.text_area("ملاحظات", value=p_row['notes'] or '')
                 
-                if st.form_submit_button("تحديث بيانات الشريك"):
+                if st.form_submit_button("تحديث البيانات"):
                     cursor = conn.cursor()
                     cursor.execute("""
                         UPDATE partners SET name=?, partner_type=?, phone=?, address=?, notes=? WHERE id=?
@@ -598,7 +687,6 @@ elif choice == "📝 أذون الحركة (إضافة / صرف / مرتجع)":
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (trans_date, trans_type, wh_id, item_id, partner_id, requester_name, quantity, unit_price, total_price, reference_no, st.session_state['user_id']))
                 
-                # تسوية مالية بالخزنة
                 if trans_type == "إضافة/توريد" and total_price > 0:
                     cursor.execute("INSERT INTO treasury_ledger (entry_date, warehouse_id, entry_type, partner_id, amount, statement, user_id) VALUES (?, ?, 'سداد توريد', ?, ?, ?, ?)",
                                    (trans_date, wh_id, partner_id, total_price, f"تكلفة توريد صنف إذن {reference_no}", st.session_state['user_id']))
@@ -611,7 +699,7 @@ elif choice == "📝 أذون الحركة (إضافة / صرف / مرتجع)":
 # 10. التحويل بين المخازن
 # ==========================================
 elif choice == "🔄 التحويل بين المخازن":
-    st.title("🔄 التحويل بين المخازن والتحويل الآلي")
+    st.title("🔄 التحويل بين المخازن")
     conn = get_connection()
     wh_df = pd.read_sql_query("SELECT id, name FROM warehouses", conn)
     items_df = pd.read_sql_query("SELECT id, code, name FROM items", conn)
@@ -762,15 +850,15 @@ elif choice == "🧾 إصدار فاتورة بيع A4":
             """, (inv_date, sel_wh_id, partner_id, net_total, f"فاتورة مبيعات رقم {inv_num}", st.session_state['user_id']))
             
             conn.commit()
-            st.success("تم إصدار وتسجيل الفاتورة والخزينة بنجاح!")
+            st.success("تم إصدار وتسجيل الفاتورة بنجاح!")
             st.session_state['cart'] = []
     conn.close()
 
 # ==========================================
-# 13. استعلام ومعاينة الفواتير
+# 13. استعلام وشاشة الفواتير
 # ==========================================
 elif choice == "🔍 استعلام وشاشة الفواتير":
-    st.title("🔍 استعلام ومعاينة الفواتير الجاهزة للطباعة")
+    st.title("🔍 استعلام ومعاينة الفواتير")
     conn = get_connection()
     inv_df = pd.read_sql_query("""
         SELECT inv.id, inv.invoice_number AS 'رقم الفاتورة', inv.invoice_date AS 'التاريخ', 
@@ -794,7 +882,7 @@ elif choice == "💰 حركة الخزنة والنثريات":
         
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("➕ إذن قيد حركة مالية / نثريات")
+        st.subheader("➕ إذن قيد حركة مالية")
         with st.form("treasury_form", clear_on_submit=True):
             entry_date = st.date_input("التاريخ", value=datetime.date.today())
             wh_name = st.selectbox("المخزن/الفرع", wh_df['name'].tolist())
@@ -818,8 +906,8 @@ elif choice == "💰 حركة الخزنة والنثريات":
         sel_wh_id = wh_df[wh_df['name'] == selected_wh]['id'].values[0]
         
         t_df = pd.read_sql_query("SELECT entry_type, amount FROM treasury_ledger WHERE warehouse_id = ?", conn, params=(sel_wh_id,))
-        inc = t_df[t_df['entry_type'].isin(['مقبوضات مبيعات', 'إيداع/سحب'])]['amount'].sum()
-        exp = t_df[t_df['entry_type'].isin(['مصروفات/نثريات', 'سداد توريد'])]['amount'].sum()
+        inc = t_df[t_df['entry_type'].isin(['مقبوضات مبيعات', 'إيداع/سحب', 'تحصيل شيك'])]['amount'].sum()
+        exp = t_df[t_df['entry_type'].isin(['مصروفات/نثريات', 'سداد توريد', 'صرف مرتبات', 'صرف عهدة'])]['amount'].sum()
         balance = inc - exp
         
         st.metric("إجمالي المقبوضات/الوارد", f"{inc:,.2f} ج.م")
@@ -838,10 +926,217 @@ elif choice == "💰 حركة الخزنة والنثريات":
     conn.close()
 
 # ==========================================
-# 15. تقرير الأرباح والخسائر وكشوف الحساب
+# 15. البنوك والشيكات
 # ==========================================
-elif choice == "📈 تقرير الأرباح والخسائر وكشف الحساب":
-    st.title("📈 تقرير الأرباح والخسائر الحسابي")
+elif choice == "🏦 حسابات البنوك والشيكات":
+    st.title("🏦 حسابات البنوك والشيكات")
+    conn = get_connection()
+    tab1, tab2 = st.tabs(["🏛️ حسابات البنوك", "📜 إدارة وتتبع الشيكات"])
+
+    with tab1:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("إضافة حساب بنكي جديد")
+            with st.form("add_bank"):
+                b_name = st.text_input("اسم البنك (مثل: CIB / البنك الأهلي)")
+                b_acc = st.text_input("رقم الحساب")
+                b_iban = st.text_input("رقم الآيبان (IBAN)")
+                b_bal = st.number_input("الرصيد الافتتاحي", value=0.0)
+                if st.form_submit_button("حفظ الحساب البنكي"):
+                    if b_name and b_acc:
+                        cursor = conn.cursor()
+                        cursor.execute("INSERT INTO bank_accounts (bank_name, account_number, iban, balance) VALUES (?, ?, ?, ?)",
+                                       (b_name, b_acc, b_iban, b_bal))
+                        conn.commit()
+                        st.success("تم الحفظ بنجاح!")
+                        st.rerun()
+        with col2:
+            st.subheader("الحسابات البنكية المسجلة")
+            st.dataframe(pd.read_sql_query("SELECT id, bank_name AS 'البنك', account_number AS 'رقم الحساب', balance AS 'الرصيد' FROM bank_accounts", conn), use_container_width=True)
+
+    with tab2:
+        banks_df = pd.read_sql_query("SELECT id, bank_name FROM bank_accounts", conn)
+        partners_df = pd.read_sql_query("SELECT id, name FROM partners", conn)
+        
+        st.subheader("➕ إضافة/صرف شيك جديد")
+        with st.form("add_cheque"):
+            c1, c2, c3 = st.columns(3)
+            chq_num = c1.text_input("رقم الشيك*")
+            b_opts = {r['bank_name']: r['id'] for _, r in banks_df.iterrows()} if not banks_df.empty else {}
+            sel_b = c2.selectbox("البنك المسحوب عليه", list(b_opts.keys())) if b_opts else None
+            p_opts = {r['name']: r['id'] for _, r in partners_df.iterrows()} if not partners_df.empty else {}
+            sel_p = c3.selectbox("الجهة / الشريك", list(p_opts.keys())) if p_opts else None
+
+            c4, c5, c6 = st.columns(3)
+            chq_type = c4.selectbox("نوع الشيك", ["مقبوض (من عميل)", "مدفوع (لمورد)"])
+            chq_amt = c5.number_input("مبلغ الشيك", min_value=1.0, value=1000.0)
+            due_date = c6.date_input("تاريخ الاستحقاق", value=datetime.date.today())
+
+            if st.form_submit_button("تسجيل الشيك"):
+                if chq_num and sel_b:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO bank_cheques (cheque_number, bank_id, partner_id, cheque_type, amount, issue_date, due_date)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (chq_num, b_opts[sel_b], p_opts[sel_p] if sel_p else None, chq_type, chq_amt, datetime.date.today(), due_date))
+                    conn.commit()
+                    st.success("تم تسجيل الشيك!")
+                    st.rerun()
+
+        st.markdown("---")
+        st.subheader("📋 حافظة الشيكات المسجلة")
+        st.dataframe(pd.read_sql_query("""
+            SELECT c.cheque_number AS 'رقم الشيك', b.bank_name AS 'البنك', p.name AS 'الجهة', 
+                   c.cheque_type AS 'النوع', c.amount AS 'المبلغ', c.due_date AS 'تاريخ الاستحقاق', c.status AS 'الحالة'
+            FROM bank_cheques c JOIN bank_accounts b ON c.bank_id = b.id LEFT JOIN partners p ON c.partner_id = p.id
+        """, conn), use_container_width=True)
+    conn.close()
+
+# ==========================================
+# 16. الـ HR والموظفين والعُهد
+# ==========================================
+elif choice == "👨‍💼 تكويد الموظفين والعُهد":
+    st.title("👨‍💼 قسم الموارد البشرية - تكويد الموظفين والعُهد")
+    conn = get_connection()
+    tab1, tab2 = st.tabs(["👨‍💼 تكويد الموظفين", "💼 إدارة العُهد المالية"])
+
+    with tab1:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("إضافة موظف جديد")
+            with st.form("add_emp"):
+                emp_name = st.text_input("اسم الموظف الثلاثي*")
+                job_title = st.text_input("المسمى الوظيفي")
+                phone = st.text_input("رقم الهاتف")
+                salary = st.number_input("الراتب الأساسي", min_value=0.0, value=5000.0)
+                nat_id = st.text_input("الرقم القومي")
+                if st.form_submit_button("حفظ الموظف"):
+                    if emp_name:
+                        cursor = conn.cursor()
+                        cursor.execute("INSERT INTO employees (full_name, job_title, phone, basic_salary, national_id) VALUES (?, ?, ?, ?, ?)",
+                                       (emp_name, job_title, phone, salary, nat_id))
+                        conn.commit()
+                        st.success("تم التكويد بنجاح!")
+                        st.rerun()
+        with col2:
+            st.subheader("قائمة الموظفين")
+            st.dataframe(pd.read_sql_query("SELECT id, full_name AS 'اسم الموظف', job_title AS 'الوظيفة', basic_salary AS 'الراتب الأساسي' FROM employees", conn), use_container_width=True)
+
+    with tab2:
+        emp_df = pd.read_sql_query("SELECT id, full_name FROM employees", conn)
+        wh_df = pd.read_sql_query("SELECT id, name FROM warehouses", conn)
+        emp_opts = {r['full_name']: r['id'] for _, r in emp_df.iterrows()} if not emp_df.empty else {}
+        wh_opts = {r['name']: r['id'] for _, r in wh_df.iterrows()}
+
+        st.subheader("➕ تسليم عُهدة مالية لموظف")
+        with st.form("add_custody"):
+            c1, c2, c3 = st.columns(3)
+            sel_e = c1.selectbox("الموظف", list(emp_opts.keys())) if emp_opts else None
+            sel_w = c2.selectbox("من خزانة فرع", list(wh_opts.keys()))
+            cust_amt = c3.number_input("مبلغ العُهدة", min_value=1.0, value=1000.0)
+            statement = st.text_input("الغرض من العُهدة")
+
+            if st.form_submit_button("صرف العُهدة وقيدها بالخزنة"):
+                if sel_e and statement:
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT INTO emp_custody (emp_id, given_date, amount, statement) VALUES (?, ?, ?, ?)",
+                                   (emp_opts[sel_e], datetime.date.today(), cust_amt, statement))
+                    # خصم من الخزنة
+                    cursor.execute("""
+                        INSERT INTO treasury_ledger (entry_date, warehouse_id, entry_type, amount, statement, user_id)
+                        VALUES (?, ?, 'صرف عهدة', ?, ?, ?)
+                    """, (datetime.date.today(), wh_opts[sel_w], cust_amt, f"صرف عهدة لموظف: {sel_e} - {statement}", st.session_state['user_id']))
+                    conn.commit()
+                    st.success("تم صرف العُهدة وتأثيرها على الخزنة!")
+                    st.rerun()
+
+        st.subheader("📋 متابعة العُهد المالية")
+        st.dataframe(pd.read_sql_query("""
+            SELECT e.full_name AS 'الموظف', c.given_date AS 'تاريخ التسليم', c.amount AS 'المبلغ', 
+                   c.statement AS 'البيان', CASE WHEN c.is_settled=1 THEN 'تمت التسوية' ELSE 'معلقة' END AS 'الحالة'
+            FROM emp_custody c JOIN employees e ON c.emp_id = e.id
+        """, conn), use_container_width=True)
+    conn.close()
+
+# ==========================================
+# 17. السلف والمرتبات
+# ==========================================
+elif choice == "💵 السُلف ومسير المرتبات":
+    st.title("💵 طلبات السُلف ومسير المرتبات الشهرية")
+    conn = get_connection()
+    emp_df = pd.read_sql_query("SELECT id, full_name, basic_salary FROM employees", conn)
+    wh_df = pd.read_sql_query("SELECT id, name FROM warehouses", conn)
+    emp_opts = {r['full_name']: r['id'] for _, r in emp_df.iterrows()} if not emp_df.empty else {}
+    wh_opts = {r['name']: r['id'] for _, r in wh_df.iterrows()}
+
+    tab1, tab2 = st.tabs(["💳 طلبات السُلف", "📜 مسير المرتبات"])
+
+    with tab1:
+        st.subheader("➕ طلب سُلفة جديدة")
+        with st.form("adv_form"):
+            c1, c2, c3 = st.columns(3)
+            sel_e = c1.selectbox("الموظف", list(emp_opts.keys())) if emp_opts else None
+            adv_amt = c2.number_input("مبلغ السُلفة", min_value=10.0, value=500.0)
+            sel_w = c3.selectbox("الخصم من خزانة فرع", list(wh_opts.keys()))
+            adv_notes = st.text_input("السبب / ملاحظات")
+
+            if st.form_submit_button("اعتماد وسداد السُلفة"):
+                if sel_e:
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT INTO emp_advances (emp_id, request_date, amount, notes) VALUES (?, ?, ?, ?)",
+                                   (emp_opts[sel_e], datetime.date.today(), adv_amt, adv_notes))
+                    cursor.execute("""
+                        INSERT INTO treasury_ledger (entry_date, warehouse_id, entry_type, amount, statement, user_id)
+                        VALUES (?, ?, 'صرف سلفة', ?, ?, ?)
+                    """, (datetime.date.today(), wh_opts[sel_w], adv_amt, f"سلفة لموظف: {sel_e}", st.session_state['user_id']))
+                    conn.commit()
+                    st.success("تم اعتماد وصرف السُلفة بنجاح!")
+
+    with tab2:
+        st.subheader("إصدار مرتبات شهرية")
+        c1, c2 = st.columns(2)
+        pay_month = c1.text_input("عن شهر (مثال: 08-2026)", value=datetime.date.today().strftime("%m-%Y"))
+        sel_e_pay = c2.selectbox("اختر الموظف للمسير:", list(emp_opts.keys())) if emp_opts else None
+
+        if sel_e_pay:
+            emp_id = emp_opts[sel_e_pay]
+            basic_sal = float(emp_df[emp_df['id'] == emp_id]['basic_salary'].values[0])
+            
+            # حساب إجمالي السُلف المعلقة
+            adv_tot = pd.read_sql_query("SELECT SUM(amount) AS tot FROM emp_advances WHERE emp_id = ? AND status='مقبولة'", conn, params=(emp_id,)).iloc[0]['tot'] or 0.0
+
+            with st.form("pay_form"):
+                col_a, col_b, col_c = st.columns(3)
+                col_a.write(f"**الراتب الأساسي:** {basic_sal:,.2f} ج.م")
+                bonuses = col_b.number_input("المكافآت / الحوافز", value=0.0)
+                deductions = col_c.number_input("الجزاءات / الاستقطاعات", value=0.0)
+                
+                adv_deduct = st.number_input("خصم من السُلف", max_value=float(adv_tot), value=float(adv_tot))
+                net_pay = basic_sal + bonuses - deductions - adv_deduct
+                st.subheader(f"**الصافي المستحق للصرف:** {net_pay:,.2f} ج.م")
+
+                sel_w_pay = st.selectbox("الصرف من خزانة فرع", list(wh_opts.keys()))
+
+                if st.form_submit_button("اعتماد وصرف الراتب"):
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO payroll (pay_month, emp_id, basic_salary, bonuses, deductions, advances_deducted, net_salary, paid_date)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (pay_month, emp_id, basic_sal, bonuses, deductions, adv_deduct, net_pay, datetime.date.today()))
+
+                    cursor.execute("""
+                        INSERT INTO treasury_ledger (entry_date, warehouse_id, entry_type, amount, statement, user_id)
+                        VALUES (?, ?, 'صرف مرتبات', ?, ?, ?)
+                    """, (datetime.date.today(), wh_opts[sel_w_pay], net_pay, f"صرف راتب شهر {pay_month} للموظف {sel_e_pay}", st.session_state['user_id']))
+                    conn.commit()
+                    st.success("تم صرف وتسجيل الراتب بالخزنة بنجاح!")
+    conn.close()
+
+# ==========================================
+# 18. تقرير الأرباح والخسائر وكشوف الحساب
+# ==========================================
+elif choice == "📈 الأرباح والخسائر وكشوف الحساب":
+    st.title("📈 تقرير الأرباح والخسائر الشامل")
     conn = get_connection()
     c1, c2 = st.columns(2)
     s_d = c1.date_input("من تاريخ", value=datetime.date.today() - datetime.timedelta(days=30))
@@ -849,21 +1144,20 @@ elif choice == "📈 تقرير الأرباح والخسائر وكشف الح�
     
     sales = pd.read_sql_query("SELECT SUM(net_amount) AS total FROM invoices WHERE invoice_date BETWEEN ? AND ?", conn, params=(s_d, e_d)).iloc[0]['total'] or 0.0
     purchases = pd.read_sql_query("SELECT SUM(total_price) AS total FROM transactions WHERE trans_type = 'إضافة/توريد' AND trans_date BETWEEN ? AND ?", conn, params=(s_d, e_d)).iloc[0]['total'] or 0.0
-    expenses = pd.read_sql_query("SELECT SUM(amount) AS total FROM treasury_ledger WHERE entry_type = 'مصروفات/نثريات' AND entry_date BETWEEN ? AND ?", conn, params=(s_d, e_d)).iloc[0]['total'] or 0.0
+    expenses = pd.read_sql_query("SELECT SUM(amount) AS total FROM treasury_ledger WHERE entry_type IN ('مصروفات/نثريات', 'صرف مرتبات') AND entry_date BETWEEN ? AND ?", conn, params=(s_d, e_d)).iloc[0]['total'] or 0.0
     
     gross_profit = sales - purchases
     net_profit = gross_profit - expenses
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("إجمالي الفواتير/المبيعات", f"{sales:,.2f} ج.م")
-    col2.metric("تكلفة التوريدات/المشتريات", f"{purchases:,.2f} ج.م")
-    col3.metric("النثريات والمصروفات", f"{expenses:,.2f} ج.م")
+    col1.metric("إجمالي المبيعات", f"{sales:,.2f} ج.م")
+    col2.metric("تكلفة التوريدات", f"{purchases:,.2f} ج.م")
+    col3.metric("المصروفات والمرتبات", f"{expenses:,.2f} ج.م")
     col4.metric("صافي الربح النهائي", f"{net_profit:,.2f} ج.م", delta=f"{net_profit:,.2f}")
-    
     conn.close()
 
 # ==========================================
-# 16. التقارير التشغيلية والرسوم البيانية
+# 19. التقارير التشغيلية والرسوم البيانية
 # ==========================================
 elif choice == "📜 التقارير التشغيلية والاستعلامات":
     st.title("📜 التقارير التشغيلية وتصدير البيانات")
@@ -881,25 +1175,24 @@ elif choice == "📜 التقارير التشغيلية والاستعلاما�
     """, conn)
     
     if show_charts and not df_res.empty:
-        fig = px.bar(df_res, x='نوع الحركة', y='الإجمالي', color='المخزن', barmode='group', title="توزيع قيم الحركات حسب نوع الإذن والمخزن")
+        fig = px.bar(df_res, x='نوع الحركة', y='الإجمالي', color='المخزن', barmode='group', title="توزيع حركات المخزون")
         st.plotly_chart(fig, use_container_width=True)
         
     st.dataframe(df_res, use_container_width=True)
     
-    # تصدير Excel
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine='openpyxl') as w:
         df_res.to_excel(w, index=False)
-    st.download_button("📥 تصدير لملف Excel (.xlsx)", buf.getvalue(), "AlMohaseb_Report.xlsx")
+    st.download_button("📥 تصدير لملف Excel (.xlsx)", buf.getvalue(), "Towertech_Report.xlsx")
     conn.close()
 
 # ==========================================
-# 17. تقارير الإدارة الاستراتيجية
+# 20. تقارير الإدارة الاستراتيجية
 # ==========================================
 elif choice == "👑 تقارير الإدارة الاستراتيجية":
     st.title("👑 تقارير وتحليلات الإدارة العليا")
     conn = get_connection()
-    st.subheader("🥇 الأكثر مبيعاً والأعلى سحباً للعملاء")
+    st.subheader("🥇 الأكثر مبيعاً للأصناف")
     df_top = pd.read_sql_query("""
         SELECT i.name AS 'الصنف', SUM(ii.quantity) AS 'إجمالي الكميات المباعة', SUM(ii.total_price) AS 'إجمالي الإيراد'
         FROM invoice_items ii JOIN items i ON ii.item_id = i.id GROUP BY i.id ORDER BY SUM(ii.total_price) DESC
@@ -908,47 +1201,73 @@ elif choice == "👑 تقارير الإدارة الاستراتيجية":
     conn.close()
 
 # ==========================================
-# 18. إدارة المستخدمين وتغيير كلمات السر
+# 21. إدارة المستخدمين وتعديل الحسابات
 # ==========================================
 elif choice == "⚙️ إدارة المستخدمين والصلاحيات":
-    st.title("⚙️ إدارة المستخدمين والصلاحيات")
+    st.title("⚙️ إدارة وتعديل المستخدمين والصلاحيات")
     conn = get_connection()
     
     wh_df = pd.read_sql_query("SELECT id, name FROM warehouses", conn)
     wh_opts = {r['name']: r['id'] for _, r in wh_df.iterrows()}
     
-    with st.form("add_user_form", clear_on_submit=True):
-        u_name = st.text_input("اسم المستخدم (Username)*")
-        f_name = st.text_input("الاسم الكامل*")
-        p_word = st.text_input("كلمة السر*", type="password")
-        u_role = st.selectbox("الصلاحية*", ["مسؤول مخازن", "ممثل مبيعات", "محاسب", "مدير النظام"])
-        assigned_wh = st.selectbox("المخزن/الفرع المخصص", list(wh_opts.keys()))
-        
-        if st.form_submit_button("إضافة المستخدم"):
-            if u_name and p_word:
-                try:
+    tab1, tab2 = st.tabs(["➕ إضافة مستخدم جديد", "✏️ تعديل حساب / كلمة السر"])
+    
+    with tab1:
+        with st.form("add_user_form", clear_on_submit=True):
+            u_name = st.text_input("اسم المستخدم (Username)*")
+            f_name = st.text_input("الاسم الكامل*")
+            p_word = st.text_input("كلمة السر*", type="password")
+            u_role = st.selectbox("الصلاحية*", ["مسؤول مخازن", "ممثل مبيعات", "محاسب", "مدير النظام"])
+            assigned_wh = st.selectbox("المخزن/الفرع المخصص", list(wh_opts.keys()))
+            
+            if st.form_submit_button("إضافة المستخدم"):
+                if u_name and p_word:
+                    try:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            INSERT INTO users (username, password, full_name, role, assigned_warehouse_id)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (u_name.strip(), hash_password(p_word), f_name.strip(), u_role, wh_opts[assigned_wh]))
+                        conn.commit()
+                        st.success("تم التكويد بنجاح!")
+                    except:
+                        st.error("اسم المستخدم مكرر.")
+                        
+    with tab2:
+        users_df = pd.read_sql_query("SELECT id, username, full_name, role FROM users", conn)
+        if not users_df.empty:
+            sel_u_name = st.selectbox("اختر المستخدم للتعديل:", users_df['username'].tolist())
+            u_row = users_df[users_df['username'] == sel_u_name].iloc[0]
+            
+            with st.form("edit_user_form"):
+                e_f_name = st.text_input("الاسم الكامل", value=u_row['full_name'])
+                e_p_word = st.text_input("كلمة السر الجديدة (اتركها فارغة لعدم التغيير)", type="password")
+                e_u_role = st.selectbox("الصلاحية", ["مسؤول مخازن", "ممثل مبيعات", "محاسب", "مدير النظام"], index=["مسؤول مخازن", "ممثل مبيعات", "محاسب", "مدير النظام"].index(u_row['role']))
+                
+                if st.form_submit_button("تحديث الحساب"):
                     cursor = conn.cursor()
-                    cursor.execute("""
-                        INSERT INTO users (username, password, full_name, role, assigned_warehouse_id)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (u_name.strip(), hash_password(p_word), f_name.strip(), u_role, wh_opts[assigned_wh]))
+                    if e_p_word:
+                        cursor.execute("UPDATE users SET full_name=?, password=?, role=? WHERE id=?",
+                                       (e_f_name, hash_password(e_p_word), e_u_role, u_row['id']))
+                    else:
+                        cursor.execute("UPDATE users SET full_name=?, role=? WHERE id=?",
+                                       (e_f_name, e_u_role, u_row['id']))
                     conn.commit()
-                    st.success("تم التكويد بنجاح!")
-                except:
-                    st.error("اسم المستخدم مكرر.")
-                    
-    st.dataframe(pd.read_sql_query("SELECT id, username, full_name, role, assigned_warehouse_id FROM users", conn), use_container_width=True)
+                    st.success("تم تحديث حساب المستخدم بنجاح!")
+                    st.rerun()
+
+    st.markdown("---")
+    st.dataframe(pd.read_sql_query("SELECT id, username AS 'اسم المستخدم', full_name AS 'الاسم الكامل', role AS 'الصلاحية' FROM users", conn), use_container_width=True)
     conn.close()
 
 # ==========================================
-# 19. النسخ الاحتياطي والاستعادة (Backup & Restore)
+# 22. النسخ الاحتياطي والاستعادة
 # ==========================================
 elif choice == "💾 النسخ الاحتياطي والاستعادة":
     st.title("💾 النسخ الاحتياطي واستعادة البيانات (Backup & Restore)")
     st.info("تتيح لك هذه الشاشة أخذ نسخة احتياطية كاملة من البيانات واستعادتها بأمان في أي وقت.")
     
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("📥 تحميل نسخة احتياطية (Download Backup)")
         if os.path.exists(DB_FILE):
@@ -957,13 +1276,13 @@ elif choice == "💾 النسخ الاحتياطي والاستعادة":
             st.download_button(
                 label="💾 تحميل قاعدة البيانات الحالية (.db)",
                 data=db_bytes,
-                file_name=f"AlMohaseb_Backup_{datetime.date.today()}.db",
+                file_name=f"Towertech_Backup_{datetime.date.today()}.db",
                 mime="application/x-sqlite3"
             )
             
     with col2:
         st.subheader("📤 استعادة نسخة احتياطية (Restore Database)")
-        uploaded_file = st.file_uploader("اختر ملف قاعدة البيانات لاستعادتها (.db)", type=["db"])
+        uploaded_file = st.file_uploader("اختر ملف قاعدة البيانات (.db)", type=["db"])
         if uploaded_file is not None:
             if st.button("⚠️ تأكيد استعادة النسخة الاحتياطية"):
                 with open(DB_FILE, "wb") as f:
