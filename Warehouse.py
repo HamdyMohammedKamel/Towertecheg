@@ -3,9 +3,7 @@ import sqlite3
 import pandas as pd
 import datetime
 import os
-import shutil
 import plotly.express as px
-import base64
 
 # ==========================================
 # 1. إعدادات الصفحة والتصميم العام (CSS)
@@ -20,19 +18,16 @@ st.set_page_config(
 # Custom CSS لشكل القائمة الجانبية والأزرار بدرجات الرمادي واللوجو
 st.markdown("""
 <style>
-    /* Styling Main Background & RTL */
     .stApp {
         direction: rtl;
         text-align: right;
     }
     
-    /* Sidebar Styling */
     [data-testid="stSidebar"] {
         background-color: #f4f5f7;
         padding-top: 10px;
     }
     
-    /* Category Headers in Sidebar */
     .sidebar-category {
         font-weight: bold;
         color: #333333;
@@ -45,15 +40,6 @@ st.markdown("""
         border-right: 4px solid #4a5568;
     }
 
-    /* Cards and Metric styling */
-    .metric-card {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
     .logo-container {
         text-align: center;
         padding: 10px;
@@ -90,16 +76,15 @@ def init_db():
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         full_name TEXT NOT NULL,
-        role TEXT NOT NULL -- Admin, Storekeeper, Sales, Accountant, HR
+        role TEXT NOT NULL
     )
     ''')
     
-    # إضافة حساب أدمن افتراضي إذا لم يكن موجوداً
     cursor.execute("SELECT * FROM users WHERE username = 'admin'")
     if not cursor.fetchone():
         cursor.execute("INSERT INTO users (username, password, full_name, role) VALUES ('admin', 'admin123', 'مدير النظام', 'Admin')")
 
-    # جدول المخازن (الرئيسية والفرعية)
+    # جدول المخازن
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS warehouses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,11 +93,6 @@ def init_db():
         manager TEXT
     )
     ''')
-    
-    # إضافة مخزن رئيسي افتراضي
-    cursor.execute("SELECT * FROM warehouses WHERE name = 'المخزن الرئيسي'")
-    if not cursor.fetchone():
-        cursor.execute("INSERT INTO warehouses (name, location, manager) VALUES ('المخزن الرئيسي', 'المركز الرئيسي', 'أدمن')")
 
     # جدول الأصناف
     cursor.execute('''
@@ -131,12 +111,12 @@ def init_db():
     )
     ''')
 
-    # جدول العملاء والموردين (الطرف الثاني)
+    # جدول العملاء والموردين
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS partners (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        type TEXT NOT NULL, -- عميل, مورد, عميل ومورد, مخزن
+        type TEXT NOT NULL,
         phone TEXT,
         address TEXT,
         tax_number TEXT,
@@ -144,12 +124,12 @@ def init_db():
     )
     ''')
 
-    # جدول حركة المخازن (إضافة / صرف / مرتجع / تحويل)
+    # جدول حركة المخازن
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS inventory_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
-        trans_type TEXT NOT NULL, -- إضافة, صرف, مرتجع, تحويل
+        trans_type TEXT NOT NULL,
         warehouse_id INTEGER,
         item_id INTEGER,
         quantity INTEGER,
@@ -168,7 +148,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_number TEXT UNIQUE NOT NULL,
         date TEXT NOT NULL,
-        invoice_type TEXT NOT NULL, -- مبيعات, مشتريات
+        invoice_type TEXT NOT NULL,
         partner_id INTEGER,
         warehouse_id INTEGER,
         total_amount REAL,
@@ -177,13 +157,13 @@ def init_db():
     )
     ''')
 
-    # جدول الخزنة والماليات (الوارد والمنصرف والنثريات)
+    # جدول الخزنة والماليات
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS treasury (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
-        trans_type TEXT NOT NULL, -- إيراد / وارد, مصروف / منصرف
-        category TEXT, -- فواتير, نثريات, رواتب, أخرى
+        trans_type TEXT NOT NULL,
+        category TEXT,
         amount REAL NOT NULL,
         statement TEXT,
         user_name TEXT
@@ -196,23 +176,23 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         bank_name TEXT NOT NULL,
         cheque_number TEXT NOT NULL,
-        cheque_type TEXT NOT NULL, -- صادرة / واردة
+        cheque_type TEXT NOT NULL,
         partner_id INTEGER,
         amount REAL NOT NULL,
         due_date TEXT NOT NULL,
-        status TEXT DEFAULT 'محتفظ به', -- محتفظ به, تحصيل, صرف, ملغى
+        status TEXT DEFAULT 'محتفظ به',
         FOREIGN KEY (partner_id) REFERENCES partners(id)
     )
     ''')
 
-    # جدول الموارد البشرية (الرواتب والسلف)
+    # جدول الموارد البشرية
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS hr_employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         emp_name TEXT NOT NULL,
         position TEXT,
         basic_salary REAL,
-        advances REAL DEFAULT 0 -- السلف
+        advances REAL DEFAULT 0
     )
     ''')
 
@@ -273,13 +253,13 @@ if not st.session_state['logged_in']:
                     st.error("اسم المستخدم أو كلمة السر غير صحيحة.")
     st.stop()
 
+
 # ==========================================
-# 5. القائمة الجانبية (شكل زراير ورمادي مع فواصل)
+# 5. القائمة الجانبية (الشكل والتنقل)
 # ==========================================
 user = st.session_state['user']
 
 with st.sidebar:
-    # اللوجو العلوي
     st.markdown("""
     <div class="logo-container">
         <div class="logo-title-ar">💼 المحاسب الذكي</div>
@@ -293,10 +273,8 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # مصفوفة الخيارات حسب الصلاحيات
     menu_choice = None
     
-    # 1. المخازن والمنتجات
     st.markdown('<div class="sidebar-category">📦 إدارة المخازن والأصناف</div>', unsafe_allow_html=True)
     if user['role'] in ['Admin', 'Storekeeper']:
         if st.button("🏬 إضافة/تعديل مخزن فرعي", use_container_width=True): menu_choice = "المخازن"
@@ -304,85 +282,87 @@ with st.sidebar:
         if st.button("🔄 حركة مخزنية (إضافة/صرف/مرتجع)", use_container_width=True): menu_choice = "الحركات المخزنية"
     if st.button("📊 جرد ورصيد المخزون الحالي", use_container_width=True): menu_choice = "جرد المخزون"
 
-    # 2. الشركاء (عملاء وموردين)
     st.markdown('<div class="sidebar-category">👥 العملاء والموردين</div>', unsafe_allow_html=True)
     if user['role'] in ['Admin', 'Sales', 'Accountant', 'Storekeeper']:
         if st.button("🤝 تكويد وتعديل عميل / مورد", use_container_width=True): menu_choice = "الشركاء"
 
-    # 3. المبيعات والفواتير
     st.markdown('<div class="sidebar-category">🧾 المبيعات والفواتير</div>', unsafe_allow_html=True)
     if user['role'] in ['Admin', 'Sales', 'Accountant', 'Storekeeper']:
         if st.button("📄 إصدار فاتورة مبيعات", use_container_width=True): menu_choice = "إصدار فاتورة"
         if st.button("🔍 استعلام عن الفواتير", use_container_width=True): menu_choice = "استعلام الفواتير"
 
-    # 4. الحسابات والمالية
     st.markdown('<div class="sidebar-category">💰 الحسابات والمالية والخزنة</div>', unsafe_allow_html=True)
     if user['role'] in ['Admin', 'Accountant']:
         if st.button("💵 الخزنة واليومية (وارد/منصرف)", use_container_width=True): menu_choice = "الخزنة والماليات"
         if st.button("🏦 البنوك والشيكات", use_container_width=True): menu_choice = "البنوك والشيكات"
 
-    # 5. الموارد البشرية
     st.markdown('<div class="sidebar-category">👔 الموارد البشرية HR</div>', unsafe_allow_html=True)
     if user['role'] in ['Admin', 'HR', 'Accountant']:
         if st.button("📋 الموظفين والرواتب والسلف", use_container_width=True): menu_choice = "الموارد البشرية"
 
-    # 6. التقارير واللوحات
     st.markdown('<div class="sidebar-category">📈 التقارير والإحصائيات</div>', unsafe_allow_html=True)
     if st.button("📊 التقارير الشاملة والبيانات", use_container_width=True): menu_choice = "التقارير"
     if user['role'] == 'Admin':
         if st.button("👑 تقارير الإدارة العليا (صاحب الشركة)", use_container_width=True): menu_choice = "تقارير الإدارة العليا"
 
-    # 7. الإعدادات والنسخ الاحتياطي
     if user['role'] == 'Admin':
         st.markdown('<div class="sidebar-category">⚙️ الإعدادات والصلاحيات</div>', unsafe_allow_html=True)
         if st.button("👤 إدارة المستخدمين وكلمات السر", use_container_width=True): menu_choice = "المستخدمين"
         if st.button("💾 النسخ الاحتياطي (Backup/Restore)", use_container_width=True): menu_choice = "النسخ الاحتياطي"
 
 if not menu_choice:
-    menu_choice = "جرد المخزون"
+    menu_choice = "المخازن"
 
 
 # ==========================================
-# 6. تفاصيل الصفحات
+# 6. تفاصيل الشاشات
 # ==========================================
 
 # ------------------------------------------
-# صفحة: إدارة المخازن الفرعية
+# 1. إدارة المخازن
 # ------------------------------------------
 if menu_choice == "المخازن":
     st.title("🏬 إدارة المخازن الرئيسية والفرعية")
     
-    with st.form("add_warehouse_form"):
+    with st.form("add_warehouse_form", clear_on_submit=True):
         st.subheader("إضافة مخزن جديد")
-        w_name = st.text_input("اسم المخزن")
+        w_name = st.text_input("اسم المخزن*")
         w_loc = st.text_input("الموقع / العنوان")
         w_mgr = st.text_input("المسؤول عن المخزن")
-        if st.form_submit_button("حفظ المخزن"):
-            if w_name:
+        submit_w = st.form_submit_button("حفظ المخزن")
+        
+        if submit_w:
+            if w_name.strip() != "":
                 conn = get_db_connection()
                 try:
-                    conn.execute("INSERT INTO warehouses (name, location, manager) VALUES (?, ?, ?)", (w_name, w_loc, w_mgr))
+                    conn.execute("INSERT INTO warehouses (name, location, manager) VALUES (?, ?, ?)", (w_name.strip(), w_loc, w_mgr))
                     conn.commit()
-                    st.success("تم إضافة المخزن بنجاح")
+                    st.success(f"✅ تم إضافة المخزن '{w_name}' بنجاح!")
                 except Exception as e:
-                    st.error("اسم المخزن موجود مسبقاً")
+                    st.error("❌ اسم المخزن موجود مسبقاً!")
                 finally:
                     conn.close()
+            else:
+                st.warning("⚠️ يرجى كتابة اسم المخزن.")
 
-    st.subheader("قائمة المخازن الحالية")
+    st.subheader("📋 قائمة المخازن المسجلة")
     conn = get_db_connection()
     df_w = pd.read_sql("SELECT * FROM warehouses", conn)
     conn.close()
-    st.dataframe(df_w, use_container_width=True)
+    
+    if df_w.empty:
+        st.info("💡 لا يوجد مخازن مسجلة حتى الآن. استخدم النموذج أعلاه لإنشاء أول مخزن.")
+    else:
+        st.dataframe(df_w, use_container_width=True)
 
 
 # ------------------------------------------
-# صفحة: تكويد صنف جديد
+# 2. تكويد صنف جديد
 # ------------------------------------------
 elif menu_choice == "الأصناف":
     st.title("🏷️ تكويد صنف جديد والتعديل")
     
-    with st.form("add_item_form"):
+    with st.form("add_item_form", clear_on_submit=True):
         st.subheader("بيانات الصنف التفصيلية")
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -399,33 +379,38 @@ elif menu_choice == "الأصناف":
             selling_price = st.number_input("سعر البيع", min_value=0.0, value=0.0)
         
         description = st.text_area("وصف إضافي وملاحظات الصنف")
+        submit_item = st.form_submit_button("حفظ الصنف")
         
-        if st.form_submit_button("حفظ الصنف"):
-            if item_code and name:
+        if submit_item:
+            if item_code.strip() != "" and name.strip() != "":
                 conn = get_db_connection()
                 try:
                     conn.execute("""
                         INSERT INTO items (item_code, name, category, serial_number, part_number, min_quantity, unit, cost_price, selling_price, description)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (item_code, name, category, serial_number, part_number, min_quantity, unit, cost_price, selling_price, description))
+                    """, (item_code.strip(), name.strip(), category, serial_number, part_number, min_quantity, unit, cost_price, selling_price, description))
                     conn.commit()
-                    st.success("تم حفظ الصنف بنجاح!")
+                    st.success(f"✅ تم حفظ الصنف '{name}' بنجاح!")
                 except Exception as e:
-                    st.error("كود الصنف مسجل مسبقاً!")
+                    st.error("❌ كود الصنف مسجل مسبقاً!")
                 finally:
                     conn.close()
             else:
-                st.warning("يرجى ملء كافة الحقول الأساسية (*)")
+                st.warning("⚠️ يرجى كتابة كود الصنف واسم الصنف على الأقل.")
 
-    st.subheader("قائمة الأصناف المكودة")
+    st.subheader("📋 قائمة الأصناف المسجلة")
     conn = get_db_connection()
     df_items = pd.read_sql("SELECT * FROM items", conn)
     conn.close()
-    st.dataframe(df_items, use_container_width=True)
+    
+    if df_items.empty:
+        st.info("💡 لا توجد أصناف مسجلة حتى الآن. استخدم النموذج أعلاه لإنشاء أول صنف.")
+    else:
+        st.dataframe(df_items, use_container_width=True)
 
 
 # ------------------------------------------
-# صفحة: الحركات المخزنية (إضافة / صرف / مرتجع / تحويل)
+# 3. الحركات المخزنية
 # ------------------------------------------
 elif menu_choice == "الحركات المخزنية":
     st.title("🔄 تسجيل حركة مخزنية (إضافة / صرف / مرتجع / تحويل)")
@@ -436,15 +421,20 @@ elif menu_choice == "الحركات المخزنية":
     partners = pd.read_sql("SELECT * FROM partners", conn)
     conn.close()
 
-    if warehouses.empty or items.empty:
-        st.warning("يرجى تكويد مخزن واحد على الأقل وصنف واحد قبل إجراء الحركات.")
+    # تشخيص دقيق يمنع التداخل أو التنبيهات المبهمة
+    if warehouses.empty and items.empty:
+        st.warning("⚠️ لا يمكنك تسجيل حركة حالياً: يرجى أولاً إضافة (مخزن واحد) من شاشة 'المخازن' و (صنف واحد) من شاشة 'الأصناف'.")
+    elif warehouses.empty:
+        st.warning("⚠️ لا يوجد أي مخزن مسجل! يرجى الذهاب أولاً إلى شاشة '🏬 إضافة/تعديل مخزن فرعي' وإنشاء مخزن.")
+    elif items.empty:
+        st.warning("⚠️ لا يوجد أي صنف مسجل! يرجى الذهاب أولاً إلى شاشة '🏷️ تكويد صنف جديد' وإضافة صنف.")
     else:
         c1, c2 = st.columns(2)
         with c1:
             trans_type = st.selectbox("نوع الحركة", ["إضافة (مشتريات/وارد)", "صرف (مبيعات/منصرف)", "مرتجع", "تحويل بين المخازن"])
             trans_date = st.date_input("تاريخ الحركة", datetime.date.today())
             selected_item = st.selectbox("اختر الصنف", items['name'].tolist())
-            item_id = items[items['name'] == selected_item]['id'].values[0]
+            item_id = int(items[items['name'] == selected_item]['id'].values[0])
             
         with c2:
             if trans_type == "تحويل بين المخازن":
@@ -463,7 +453,7 @@ elif menu_choice == "الحركات المخزنية":
             person_in_charge = st.text_input("اسم المسؤول عن الطلب / المستلم")
             notes = st.text_area("ملاحظات الحركة")
 
-        if st.button("تسجيل الحركة المخزنية"):
+        if st.button("💾 تسجيل الحركة المخزنية"):
             conn = get_db_connection()
             curr = conn.cursor()
             
@@ -474,18 +464,16 @@ elif menu_choice == "الحركات المخزنية":
             if trans_type == "تحويل بين المخازن":
                 f_id = int(warehouses[warehouses['name'] == from_wh]['id'].values[0])
                 t_id = int(warehouses[warehouses['name'] == to_wh]['id'].values[0])
-                # 1. حركة صرف من المخزن الأول
                 curr.execute("""
                     INSERT INTO inventory_transactions (date, trans_type, warehouse_id, item_id, quantity, unit_price, person_in_charge, notes)
                     VALUES (?, 'صرف', ?, ?, ?, ?, ?, ?)
                 """, (str(trans_date), f_id, item_id, quantity, unit_price, person_in_charge, f"تحويل إلى مخزن {to_wh}: {notes}"))
                 
-                # 2. حركة إضافة للمخزن الثاني
                 curr.execute("""
                     INSERT INTO inventory_transactions (date, trans_type, warehouse_id, item_id, quantity, unit_price, person_in_charge, notes)
                     VALUES (?, 'إضافة', ?, ?, ?, ?, ?, ?)
                 """, (str(trans_date), t_id, item_id, quantity, unit_price, person_in_charge, f"تحويل من مخزن {from_wh}: {notes}"))
-                st.success(f"تم تحويل {quantity} من {from_wh} إلى {to_wh} بنجاح!")
+                st.success(f"✅ تم تحويل {quantity} من {from_wh} إلى {to_wh} بنجاح!")
             else:
                 w_id = int(warehouses[warehouses['name'] == selected_wh]['id'].values[0])
                 clean_type = "إضافة" if "إضافة" in trans_type else ("صرف" if "صرف" in trans_type else "مرتجع")
@@ -493,14 +481,14 @@ elif menu_choice == "الحركات المخزنية":
                     INSERT INTO inventory_transactions (date, trans_type, warehouse_id, item_id, quantity, unit_price, partner_id, person_in_charge, notes)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (str(trans_date), clean_type, w_id, item_id, quantity, unit_price, p_id, person_in_charge, notes))
-                st.success("تم تسجيل الحركة المخزنية بنجاح!")
+                st.success("✅ تم تسجيل الحركة المخزنية بنجاح!")
 
             conn.commit()
             conn.close()
 
 
 # ------------------------------------------
-# صفحة: جرد ورصيد المخزون الحالي
+# 4. جرد ورصيد المخزون
 # ------------------------------------------
 elif menu_choice == "جرد المخزون":
     st.title("📊 جرد المخزون الحالي والتنبيهات")
@@ -524,42 +512,40 @@ elif menu_choice == "جرد المخزون":
     conn.close()
 
     if not df_stock.empty:
-        # التنبيه إذا كان الرصيد أقل من حد الأمان
         low_stock = df_stock[df_stock['الرصيد الحالي'] <= df_stock['حد الأمان']]
         if not low_stock.empty:
             st.error("⚠️ **تنبيـــه: يوجد أصناف وصلت إلى حد الأمان أو أقل!**")
             st.dataframe(low_stock, use_container_width=True)
 
-        st.subheader("جدول جرد لكافة المخازن")
+        st.subheader("جدول جرد المخزون")
         st.dataframe(df_stock, use_container_width=True)
-        
         st.metric("إجمالي قيمة البضاعة بالمخازن", f"{df_stock['إجمالي القيمة'].sum():,.2f} ج.م")
     else:
-        st.info("لا توجد حركات مخزنية حتى الآن.")
+        st.info("💡 لا توجد حركات مخزنية أو أرصدة مسجلة حتى الآن. (قم بتسجيل حركات إضافة أولاً من شاشة الحركات المخزنية).")
 
 
 # ------------------------------------------
-# صفحة: الشركاء (العملاء والموردين)
+# 5. العملاء والموردين
 # ------------------------------------------
 elif menu_choice == "الشركاء":
     st.title("🤝 إدارة العملاء والموردين وتعديلهم")
     
-    with st.form("partner_form"):
-        st.subheader("إضافة / تعديل شركاء الأعمال")
-        p_name = st.text_input("الاسم الكامل (شركة / فرد)")
+    with st.form("partner_form", clear_on_submit=True):
+        st.subheader("إضافة شريك جديد")
+        p_name = st.text_input("الاسم الكامل (شركة / فرد)*")
         p_type = st.selectbox("الصفة", ["عميل", "مورد", "عميل ومورد معا (Dual Role)", "مخزن محلي"])
         p_phone = st.text_input("رقم الهاتف")
         p_address = st.text_input("العنوان")
         p_tax = st.text_input("الرقم الضريبي")
         
         if st.form_submit_button("حفظ الشريك"):
-            if p_name:
+            if p_name.strip() != "":
                 conn = get_db_connection()
                 conn.execute("INSERT INTO partners (name, type, phone, address, tax_number) VALUES (?, ?, ?, ?, ?)",
-                             (p_name, p_type, p_phone, p_address, p_tax))
+                             (p_name.strip(), p_type, p_phone, p_address, p_tax))
                 conn.commit()
                 conn.close()
-                st.success("تم الحفظ بنجاح")
+                st.success("✅ تم حفظ الشريك بنجاح!")
 
     st.subheader("قائمة العملاء والموردين المكودين")
     conn = get_db_connection()
@@ -569,10 +555,10 @@ elif menu_choice == "الشركاء":
 
 
 # ------------------------------------------
-# صفحة: إصدار فاتورة مبيعات
+# 6. إصدار الفواتير
 # ------------------------------------------
 elif menu_choice == "إصدار فاتورة":
-    st.title("📄 إصدار فاتورة مبيعات (بناءً على المخزون)")
+    st.title("📄 إصدار فاتورة مبيعات")
     
     conn = get_db_connection()
     partners = pd.read_sql("SELECT * FROM partners WHERE type IN ('عميل', 'عميل ومورد معا (Dual Role)')", conn)
@@ -581,7 +567,7 @@ elif menu_choice == "إصدار فاتورة":
     conn.close()
 
     if partners.empty or items.empty:
-        st.warning("تأكد من تكويد العملاء والأصناف أولاً.")
+        st.warning("⚠️ يرجى تأكيد وجود عملاء وأصناف مكودة أولاً قبل اصدار الفاتورة.")
     else:
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -600,59 +586,34 @@ elif menu_choice == "إصدار فاتورة":
 
         st.markdown(f"### الإجمالي: **{total:,.2f} ج.م**")
 
-        if st.button("🪶 إصدار طباعة الفاتورة وحفظها"):
+        if st.button("🪶 إصدار وطباعة الفاتورة"):
             conn = get_db_connection()
             curr = conn.cursor()
             p_id = int(partners[partners['name'] == selected_partner]['id'].values[0])
             w_id = int(warehouses[warehouses['name'] == selected_wh]['id'].values[0])
             
-            # حفظ الفاتورة
             curr.execute("INSERT INTO invoices (invoice_number, date, invoice_type, partner_id, warehouse_id, total_amount, created_by) VALUES (?, ?, 'مبيعات', ?, ?, ?, ?)",
                          (inv_num, str(inv_date), p_id, w_id, total, user['full_name']))
             
-            # صرف الكمية تلقائياً من المخزن
             curr.execute("""
                 INSERT INTO inventory_transactions (date, trans_type, warehouse_id, item_id, quantity, unit_price, partner_id, person_in_charge, notes)
                 VALUES (?, 'صرف', ?, ?, ?, ?, ?, ?, ?)
             """, (str(inv_date), w_id, int(item_row['id']), qty, price, p_id, user['full_name'], f"فاتورة مبيعات رقم {inv_num}"))
 
-            # تسجيل إيراد بالخزنة
             curr.execute("INSERT INTO treasury (date, trans_type, category, amount, statement, user_name) VALUES (?, 'إيراد / وارد', 'فواتير مبيعات', ?, ?, ?)",
                          (str(inv_date), total, f"تحصيل فاتورة رقم {inv_num}", user['full_name']))
 
             conn.commit()
             conn.close()
 
-            st.success("تم إصدار الفاتورة وتخصيم الكمية من المخزن وتسجيل الإيراد بالخزنة!")
-            
-            # قالب معاينة الفاتورة للطباعة
-            st.markdown(f"""
-            <div style="border:2px solid #333; padding:20px; border-radius:10px; background:#fff; color:#000;">
-                <div style="text-align:center;">
-                    <h2>🏢 شركة المحاسب الذكي لتوريد الأجهزة</h2>
-                    <p>فاتورة مبيعات ضريبية - Sales Invoice</p>
-                    <hr>
-                </div>
-                <p><b>رقم الفاتورة:</b> {inv_num} | <b>التاريخ:</b> {inv_date}</p>
-                <p><b>العميل:</b> {selected_partner} | <b>المسؤول:</b> {user['full_name']}</p>
-                <table border="1" style="width:100%; text-align:center; border-collapse:collapse;">
-                    <tr style="background:#eee;">
-                        <th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th>
-                    </tr>
-                    <tr>
-                        <td>{selected_item}</td><td>{qty}</td><td>{price}</td><td>{total}</td>
-                    </tr>
-                </table>
-                <h3 style="text-align:left;">المبلغ الإجمالي: {total:,.2f} ج.م</h3>
-            </div>
-            """, unsafe_allow_html=True)
+            st.success("✅ تم إصدار الفاتورة وتخصيم الكمية من المخزن وتسجيل الإيراد!")
 
 
 # ------------------------------------------
-# صفحة: استعلام الفواتير
+# 7. استعلام الفواتير
 # ------------------------------------------
 elif menu_choice == "استعلام الفواتير":
-    st.title("🔍 استعلام عن حركة الفواتير")
+    st.title("🔍 استعلام عن الفواتير الصادرة")
     conn = get_db_connection()
     df_inv = pd.read_sql("""
         SELECT i.invoice_number as 'رقم الفاتورة', i.date as 'التاريخ', i.invoice_type as 'النوع', p.name as 'الشريك', i.total_amount as 'الإجمالي', i.created_by as 'المُصدر'
@@ -664,13 +625,13 @@ elif menu_choice == "استعلام الفواتير":
 
 
 # ------------------------------------------
-# صفحة: الخزنة والماليات
+# 8. الخزنة والماليات
 # ------------------------------------------
 elif menu_choice == "الخزنة والماليات":
-    st.title("💰 إدارة الخزنة والمقبوضات والمصروفات والنثريات")
+    st.title("💰 إدارة الخزنة والمقبوضات والمصروفات")
     
-    with st.form("treasury_form"):
-        st.subheader("تسجيل حركة مالية بالخزنة")
+    with st.form("treasury_form", clear_on_submit=True):
+        st.subheader("تسجيل حركة مالية")
         c1, c2 = st.columns(2)
         with c1:
             t_type = st.selectbox("نوع الحركة", ["إيراد / وارد", "مصروف / منصرف"])
@@ -686,7 +647,7 @@ elif menu_choice == "الخزنة والماليات":
                          (str(t_date), t_type, t_cat, t_amount, t_statement, user['full_name']))
             conn.commit()
             conn.close()
-            st.success("تم تسجيل الحركة بالخزنة!")
+            st.success("✅ تم تسجيل الحركة بالخزنة!")
 
     st.subheader("كشف حساب حركة الخزنة")
     conn = get_db_connection()
@@ -707,7 +668,7 @@ elif menu_choice == "الخزنة والماليات":
 
 
 # ------------------------------------------
-# صفحة: البنوك والشيكات
+# 9. البنوك والشيكات
 # ------------------------------------------
 elif menu_choice == "البنوك والشيكات":
     st.title("🏦 قسم الحسابات والشيكات البنكية")
@@ -716,7 +677,7 @@ elif menu_choice == "البنوك والشيكات":
     partners = pd.read_sql("SELECT * FROM partners", conn)
     conn.close()
 
-    with st.form("cheque_form"):
+    with st.form("cheque_form", clear_on_submit=True):
         st.subheader("تسجيل شيك بنكي جديد")
         c1, c2 = st.columns(2)
         with c1:
@@ -735,9 +696,9 @@ elif menu_choice == "البنوك والشيكات":
                          (bank_name, cheque_num, cheque_type, p_id, amount, str(due_date)))
             conn.commit()
             conn.close()
-            st.success("تم تسجيل الشيك البنكي بنجاح!")
+            st.success("✅ تم تسجيل الشيك البنكي بنجاح!")
 
-    st.subheader("سجل الشيكات البنكية ومتابعة الاستحقاق")
+    st.subheader("سجل الشيكات البنكية")
     conn = get_db_connection()
     df_c = pd.read_sql("""
         SELECT c.bank_name as 'البنك', c.cheque_number as 'رقم الشيك', c.cheque_type as 'النوع', p.name as 'الشريك', c.amount as 'المبلغ', c.due_date as 'تاريخ الاستحقاق', c.status as 'الحالة'
@@ -749,7 +710,7 @@ elif menu_choice == "البنوك والشيكات":
 
 
 # ------------------------------------------
-# صفحة: الموارد البشرية HR
+# 10. الموارد البشرية HR
 # ------------------------------------------
 elif menu_choice == "الموارد البشرية":
     st.title("👔 قسم الموارد البشرية HR والرواتب")
@@ -757,7 +718,7 @@ elif menu_choice == "الموارد البشرية":
     tab1, tab2 = st.tabs(["إضافة موظف جديد", "تسجيل سلفة / صرف راتب"])
     
     with tab1:
-        with st.form("add_emp"):
+        with st.form("add_emp", clear_on_submit=True):
             e_name = st.text_input("اسم الموظف")
             e_pos = st.text_input("المسمى الوظيفي")
             e_sal = st.number_input("الراتب الأساسي", min_value=0.0)
@@ -766,7 +727,7 @@ elif menu_choice == "الموارد البشرية":
                 conn.execute("INSERT INTO hr_employees (emp_name, position, basic_salary) VALUES (?, ?, ?)", (e_name, e_pos, e_sal))
                 conn.commit()
                 conn.close()
-                st.success("تمت إضافة الموظف!")
+                st.success("✅ تمت إضافة الموظف!")
 
     with tab2:
         conn = get_db_connection()
@@ -783,9 +744,9 @@ elif menu_choice == "الموارد البشرية":
                              (str(datetime.date.today()), adv_amount, f"سلفة للموظف {sel_emp}", user['full_name']))
                 conn.commit()
                 conn.close()
-                st.success("تم تسجيل السلفة وخصم المبلغ من الخزنة!")
+                st.success("✅ تم تسجيل السلفة وخصم المبلغ من الخزنة!")
 
-    st.subheader("سجل الموظفين والرواتب بالسلف")
+    st.subheader("سجل الموظفين والرواتب")
     conn = get_db_connection()
     df_e = pd.read_sql("SELECT * FROM hr_employees", conn)
     conn.close()
@@ -793,83 +754,49 @@ elif menu_choice == "الموارد البشرية":
 
 
 # ------------------------------------------
-# صفحة: التقارير والرسوم البيانية
+# 11. التقارير والبيانات
 # ------------------------------------------
 elif menu_choice == "التقارير":
-    st.title("📈 مركز التقارير الشاملة والرسوم البيانية")
-    
-    report_type = st.selectbox("اختر التقرير المطلوب", [
-        "استعلام عن حركات صنف في فترة",
-        "استعلام عن حركة عميل / مورد",
-        "تقرير حركة اذون الصرف والإضافة",
-        "إحصائيات الرسوم البيانية"
-    ])
+    st.title("📈 مركز التقارير الشاملة")
     
     conn = get_db_connection()
+    st.subheader("📊 رسم بياني للرسوم والحركات")
+    df_m = pd.read_sql("SELECT trans_type, COUNT(*) as count FROM inventory_transactions GROUP BY trans_type", conn)
+    if not df_m.empty:
+        fig2 = px.bar(df_m, x='trans_type', y='count', title='عدد الحركات المخزنية حسب النوع', color='trans_type')
+        st.plotly_chart(fig2, use_container_width=True)
     
-    if report_type == "إحصائيات الرسوم البيانية":
-        st.subheader("📊 رسم بياني لحركة المقبوضات والمصروفات بالخزنة")
-        df_t = pd.read_sql("SELECT trans_type, SUM(amount) as total FROM treasury GROUP BY trans_type", conn)
-        if not df_t.empty:
-            fig = px.pie(df_t, values='total', names='trans_type', title='نسبة المقبوضات إلى المصروفات')
-            st.plotly_chart(fig, use_container_width=True)
-            
-        st.subheader("📦 أثر الحركات المخزنية حسب النوع")
-        df_m = pd.read_sql("SELECT trans_type, COUNT(*) as count FROM inventory_transactions GROUP BY trans_type", conn)
-        if not df_m.empty:
-            fig2 = px.bar(df_m, x='trans_type', y='count', title='عدد الحركات المخزنية حسب النوع', color='trans_type')
-            st.plotly_chart(fig2, use_container_width=True)
-            
-    else:
-        df_all = pd.read_sql("SELECT * FROM inventory_transactions", conn)
-        st.dataframe(df_all, use_container_width=True)
-        
-        # امكانية التصدير لـ Excel
-        if st.button("📥 تصدير التقرير لملف Excel"):
-            df_all.to_excel("report_export.xlsx", index=False)
-            st.success("تم حفظ التقرير في ملف report_export.xlsx بنجاح!")
-            
+    st.subheader("سجل كل الحركات المخزنية")
+    df_all = pd.read_sql("SELECT * FROM inventory_transactions", conn)
+    st.dataframe(df_all, use_container_width=True)
     conn.close()
 
 
 # ------------------------------------------
-# صفحة: تقارير الإدارة العليا (صاحب الشركة)
+# 12. تقارير الإدارة العليا
 # ------------------------------------------
 elif menu_choice == "تقارير الإدارة العليا":
-    st.title("👑 لوحة قيادة الإدارة العليا (صاحب الشركة)")
+    st.title("👑 لوحة قيادة الإدارة العليا")
     
     conn = get_db_connection()
-    
-    # 1. أكثر مورد/عميل تعاملاً
-    st.subheader("🏆 أفضل العملاء والموردين حجماً للمبيعات والمشتريات")
+    st.subheader("🏆 إجمالي التعاملات المالية للعملاء والموردين")
     df_p = pd.read_sql("""
-        SELECT p.name as 'الاسم', p.type as 'النوع', SUM(i.total_amount) as 'إجمالي التعاملات'
+        SELECT p.name as 'الاسم', p.type as 'النوع', SUM(i.total_amount) as 'إجمالي الفواتير'
         FROM invoices i
         JOIN partners p ON i.partner_id = p.id
         GROUP BY p.id
-        ORDER BY 'إجمالي التعاملات' DESC
     """, conn)
     st.dataframe(df_p, use_container_width=True)
-
-    # 2. أكثر الأصناف مبيعاً ومرتجعاً
-    st.subheader("🔥 الأصناف الأفضل والأسوأ مبيعاً ومرتجعات")
-    df_items_perf = pd.read_sql("""
-        SELECT item_id, trans_type, SUM(quantity) as total_qty
-        FROM inventory_transactions
-        GROUP BY item_id, trans_type
-    """, conn)
-    st.dataframe(df_items_perf, use_container_width=True)
-    
     conn.close()
 
 
 # ------------------------------------------
-# صفحة: إدارة المستخدمين والصلاحيات
+# 13. إدارة المستخدمين
 # ------------------------------------------
 elif menu_choice == "المستخدمين":
-    st.title("👤 إدارة المستخدمين وتدقيق الصلاحيات")
+    st.title("👤 إدارة المستخدمين والصلاحيات")
     
-    with st.form("add_user_form"):
+    with st.form("add_user_form", clear_on_submit=True):
         st.subheader("إنشاء حساب موظف جديد")
         u_name = st.text_input("اسم المستخدم (Username)*")
         u_pass = st.text_input("كلمة السر*", type="password")
@@ -883,9 +810,9 @@ elif menu_choice == "المستخدمين":
                     conn.execute("INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)",
                                  (u_name, u_pass, u_full, u_role))
                     conn.commit()
-                    st.success("تم حساب الموظف بنجاح!")
+                    st.success("✅ تم إنشاء حساب الموظف بنجاح!")
                 except:
-                    st.error("اسم المستخدم مسجل مسبقاً")
+                    st.error("❌ اسم المستخدم مسجل مسبقاً")
                 finally:
                     conn.close()
 
@@ -897,25 +824,24 @@ elif menu_choice == "المستخدمين":
 
 
 # ------------------------------------------
-# صفحة: النسخ الاحتياطي واسترجاع البيانات Backup & Restore
+# 14. النسخ الاحتياطي Restore / Backup
 # ------------------------------------------
 elif menu_choice == "النسخ الاحتياطي":
-    st.title("💾 إدارة النسخ الاحتياطي واسترجاع البيانات (Backup & Restore)")
+    st.title("💾 إدارة النسخ الاحتياطي واسترجاع البيانات")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("📦 أخذ نسخة احتياطية (Backup)")
-        if st.button("تحميل نسخة احتياطية من قاعدة البيانات"):
-            if os.path.exists(DB_FILE):
-                with open(DB_FILE, "rb") as f:
-                    bytes_data = f.read()
-                st.download_button(
-                    label="⬇️ اضغط هنا لتنزيل ملف Backup",
-                    data=bytes_data,
-                    file_name=f"backup_smart_erp_{datetime.date.today()}.db",
-                    mime="application/x-sqlite3"
-                )
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE, "rb") as f:
+                bytes_data = f.read()
+            st.download_button(
+                label="⬇️ اضغط هنا لتنزيل ملف Backup",
+                data=bytes_data,
+                file_name=f"backup_smart_erp_{datetime.date.today()}.db",
+                mime="application/x-sqlite3"
+            )
 
     with col2:
         st.subheader("♻️ استرجاع نسخة قديمة (Restore)")
@@ -924,4 +850,4 @@ elif menu_choice == "النسخ الاحتياطي":
             if st.button("⚠️ تأكيد استرجاع البيانات وإعادة الكتابة"):
                 with open(DB_FILE, "wb") as f:
                     f.write(uploaded_file.getbuffer())
-                st.success("تم استرجاع قاعدة البيانات بنجاح! يرجى إعادة تحميل الصفحة.")
+                st.success("✅ تم استرجاع قاعدة البيانات بنجاح! يرجى إعادة تحميل الصفحة.")
